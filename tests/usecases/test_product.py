@@ -38,11 +38,17 @@ async def test_usecases_query_should_return_success():
     assert isinstance(result, List)
     assert len(result) > 1
 
+@pytest.mark.usefixtures("products_inserted")
+async def test_usecases_query_filter_should_return_success():
+    result = await product_usecase.query_filter(max_price=10.000, min_price=7.000)
+
+    assert isinstance(result, List)
+
 
 async def test_usecases_update_should_return_success(product_up, product_inserted):
     product_up.price = "7.500"
-    result = await product_usecase.update(id=product_inserted.id, body=product_up)
-
+    product_up_dict = product_up.model_dump(exclude_none=True)
+    result = await product_usecase.update(id=product_inserted.id, body=product_up_dict)
     assert isinstance(result, ProductUpdateOut)
 
 

@@ -1,3 +1,4 @@
+import datetime
 from typing import List
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from pydantic import UUID4
@@ -13,7 +14,10 @@ router = APIRouter(tags=["products"])
 async def post(
     body: ProductIn = Body(...), usecase: ProductUsecase = Depends()
 ) -> ProductOut:
-    return await usecase.create(body=body)
+    try:
+        return await usecase.create(body=body)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=exc.message)
 
 
 @router.get(path="/{id}", status_code=status.HTTP_200_OK)
@@ -30,6 +34,10 @@ async def get(
 async def query(usecase: ProductUsecase = Depends()) -> List[ProductOut]:
     return await usecase.query()
 
+@router.get(path="", status_code=status.HTTP_200_OK)
+async def query_filter(usecase: ProductUsecase = Depends(), max_price: float | None = None, min_price: float | None = None) -> List[ProductOut]:
+    return await usecase.query_filter(max_price=max_price, min_price=min_price)
+
 
 @router.patch(path="/{id}", status_code=status.HTTP_200_OK)
 async def patch(
@@ -37,8 +45,12 @@ async def patch(
     body: ProductUpdate = Body(...),
     usecase: ProductUsecase = Depends(),
 ) -> ProductUpdateOut:
-    return await usecase.update(id=id, body=body)
-
+    body_dict = body.model_dump(exclude_none=True)
+    body_dict['updated_at'] = datetime.datetime.now()
+    try:
+        return await usecase.update(id=id, body=body_dict)
+    except NotFoundException as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message)
 
 @router.delete(path="/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete(
